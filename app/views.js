@@ -37,6 +37,18 @@ export function fmtShare(share) {
   return (share * 100).toFixed(1) + '%';
 }
 
+// A ratio with enough precision that a near-tie never reads as equal:
+// two decimals under 1.1 ("1.03×"), one decimal otherwise ("6.2×").
+export function fmtRatio(ratio) {
+  return ratio < 1.1 ? ratio.toFixed(2) : ratio.toFixed(1);
+}
+
+// "first"/"second"/"third" for small ranks, so generated prose reads
+// naturally; anything larger falls back to the numeric ordinal.
+export function ordinalWord(n) {
+  return { 1: 'first', 2: 'second', 3: 'third' }[n] ?? ordinal(n);
+}
+
 // The five indicators, in the order the site presents them. key matches
 // data.js; label is the short name; format turns a raw value into text.
 export const INDICATORS = [
@@ -66,18 +78,37 @@ export function renderOverview() {
   const chartItems = sortedBy('pop').map((c) => ({
     label: c.name, value: c.pop, display: fmtPop(c.pop), href: profileLink(c),
   }));
+  // Every figure in the findings and spotlights below is computed from
+  // data.js at render time — no number is typed twice — so a dataset
+  // change can never leave stale prose behind (review gap G6).
+  const india = countryBySlug('india');
+  const china = countryBySlug('china');
+  const usa = countryBySlug('united-states');
+  const bangladesh = countryBySlug('bangladesh');
+  const japan = countryBySlug('japan');
+  const lifeSorted = sortedBy('life');
+  const longestLived = lifeSorted[0];
+  const shortestLived = lifeSorted[lifeSorted.length - 1];
+  const ppSorted = sortedBy('gdpPerPerson');
+  const richest = ppSorted[0];
+  const poorest = ppSorted[ppSorted.length - 1];
+  const ppGap = Math.round(gdpPerPerson(richest) / gdpPerPerson(poorest));
+  const indiaPp = gdpPerPerson(india);
+  const usTimes = Math.round(gdpPerPerson(usa) / indiaPp);
+  const indiaTie = Math.abs(indiaPp - gdpPerPerson(bangladesh)) <= 5
+    ? 'almost exactly tied with' : 'close to';
   const findings = [
     {
       title: 'India has passed China',
-      body: `India is now the most populous country on Earth — ${fmtPopFull(1450935791)} people in 2024, about 42 million more than China (${fmtPopFull(1408975000)}). But China's economy is still roughly five times India's: ${fmtGdp(18729668435848)} against ${fmtGdp(3760813470501)}.`,
+      body: `India is now the most populous country on Earth — ${fmtPopFull(india.pop)} people in 2024, about ${Math.round((india.pop - china.pop) / 1e6)} million more than China (${fmtPopFull(china.pop)}). But China's economy is still roughly ${Math.round(china.gdp / india.gdp)} times India's: ${fmtGdp(china.gdp)} against ${fmtGdp(india.gdp)}.`,
     },
     {
       title: 'Twelve countries, most of the world',
-      body: `These twelve hold ${fmtShare(totals.popShare)} of humanity (${fmtPop(totals.pop)}) and produce ${fmtShare(totals.gdpShare)} of world GDP (${fmtGdp(totals.gdp)}). Yet life expectancy across them still spans 29.6 years — 54.5 in Nigeria, 84.0 in Japan.`,
+      body: `These twelve hold ${fmtShare(totals.popShare)} of humanity (${fmtPop(totals.pop)}) and produce ${fmtShare(totals.gdpShare)} of world GDP (${fmtGdp(totals.gdp)}). Yet life expectancy across them still spans ${(longestLived.life - shortestLived.life).toFixed(1)} years — ${fmtLife(shortestLived.life)} in ${shortestLived.name}, ${fmtLife(longestLived.life)} in ${longestLived.name}.`,
     },
     {
-      title: '79× apart, per person',
-      body: `GDP per person runs from ${fmtPerPerson(gdpPerPerson(countryBySlug('united-states')))} in the United States to ${fmtPerPerson(gdpPerPerson(countryBySlug('nigeria')))} in Nigeria — a 79-fold gap. Totals hide this: India has the world's 5th-largest GDP and only its 10th-highest GDP per person.`,
+      title: `${ppGap}× apart, per person`,
+      body: `GDP per person runs from ${fmtPerPerson(gdpPerPerson(richest))} in the ${richest.name} to ${fmtPerPerson(gdpPerPerson(poorest))} in ${poorest.name} — a ${ppGap}-fold gap. Totals hide this: India has the world's ${ordinal(rankOf(india, 'gdp'))}-largest GDP and only its ${ordinal(rankOf(india, 'gdpPerPerson'))}-highest GDP per person.`,
     },
   ];
   return `
@@ -117,12 +148,12 @@ export function renderOverview() {
     <div class="cards">
       <article class="card spotlight">
         <h3><a href="#/country/japan">Japan — the longest-lived</a></h3>
-        <p>Life expectancy <strong>84.0 years</strong>, the highest of the twelve — 10.7 years above the world average. Unemployment is <strong>2.5%</strong>, second-lowest of the twelve, in a country of 124.0 million people with a $4.19tn economy.</p>
+        <p>Life expectancy <strong>${fmtLife(japan.life)}</strong>, the highest of the twelve — ${(japan.life - WORLD.lifeExpectancy).toFixed(1)} years above the world average. Unemployment is <strong>${fmtUnemp(japan.unemp)}</strong>, ${ordinalWord(13 - rankOf(japan, 'unemp'))}-lowest of the twelve, in a country of ${fmtPop(japan.pop)} people with a ${fmtGdp(japan.gdp)} economy.</p>
         <p><a href="#/country/japan">Open Japan's profile →</a></p>
       </article>
       <article class="card spotlight">
         <h3><a href="#/country/india">India — the most people</a></h3>
-        <p><strong>1.45 billion people</strong>, the largest population on Earth, and the 5th-largest economy at $3.76tn. But per person it is $2,592 a year — almost exactly tied with Bangladesh ($2,593) and 33× less than the United States.</p>
+        <p><strong>${fmtPop(india.pop)} people</strong>, the largest population on Earth, and the ${ordinal(rankOf(india, 'gdp'))}-largest economy at ${fmtGdp(india.gdp)}. But per person it is ${fmtPerPerson(indiaPp)} a year — ${indiaTie} Bangladesh (${fmtPerPerson(gdpPerPerson(bangladesh))}) and ${usTimes}× less than the United States.</p>
         <p><a href="#/country/india">Open India's profile →</a></p>
       </article>
     </div>
@@ -132,7 +163,7 @@ export function renderOverview() {
     ${sectionHead('How to read a statistic', 'Three habits that keep the numbers honest.')}
     <ol class="howto">
       <li><strong>Check the year.</strong> Population and GDP here are 2024; life expectancy is 2023, the latest the World Bank has published. A figure without a year is a rumour.</li>
-      <li><strong>Totals lie; per person tells.</strong> India outranks Germany on GDP and trails it 22-fold per person. Always ask which of the two you are looking at.</li>
+      <li><strong>Totals lie; per person tells.</strong> ${china.name} outranks ${japan.name} on GDP and trails it ${(gdpPerPerson(japan) / gdpPerPerson(china)).toFixed(1)}-fold per person. Always ask which of the two you are looking at.</li>
       <li><strong>Modelled is not counted.</strong> The unemployment rates are ILO-modelled estimates, not census counts — good for comparing countries, not for quoting to one decimal as gospel.</li>
     </ol>
     <p class="cta-row"><a class="button" href="#/countries">Rank all twelve →</a> <a class="button ghost" href="#/compare">Compare two countries →</a></p>
@@ -167,7 +198,7 @@ export function renderRankings() {
     <p class="lede">Click a column heading to sort by it — click again to reverse. Search
     filters by country name. Download the table as a CSV and the numbers travel with you.</p>
     <div class="table-tools">
-      <label class="search">Search <input id="rank-search" type="search" placeholder="Type a country name…" autocomplete="off"></label>
+      <label class="search">Search <input id="rank-search" type="search" placeholder="Search countries…" autocomplete="off"></label>
       <button id="csv-download" class="button">Download CSV</button>
     </div>
     <div class="table-wrap">
@@ -231,6 +262,9 @@ export function renderProfile(slug) {
       <p class="cta-row"><a class="button" href="#/countries">See the rankings →</a></p></section>`;
   }
   const others = COUNTRIES.filter((o) => o.slug !== c.slug);
+  const lifeSorted = sortedBy('life');
+  const longestLived = lifeSorted[0];
+  const shortestLived = lifeSorted[lifeSorted.length - 1];
   return `
   <section>
     <p class="kicker"><a href="#/countries">Rankings</a> · ${esc(c.region)}</p>
@@ -249,7 +283,7 @@ export function renderProfile(slug) {
     </div>
     <h2>Life expectancy in context</h2>
     ${lifeScale(c.life)}
-    <p class="chart-note">The dot marks ${esc(c.name)} (${fmtLife(c.life)}); the tick marks the world average (${fmtLife(WORLD.lifeExpectancy)}). The twelve-country range runs 54.5 (Nigeria) to 84.0 (Japan).</p>
+    <p class="chart-note">The dot marks ${esc(c.name)} (${fmtLife(c.life)}); the tick marks the world average (${fmtLife(WORLD.lifeExpectancy)}). The twelve-country range runs ${fmtLife(shortestLived.life)} (${esc(shortestLived.name)}) to ${fmtLife(longestLived.life)} (${esc(longestLived.name)}).</p>
     <h2>All five ranks</h2>
     <div class="table-wrap"><table>
       <thead><tr><th>Indicator</th><th class="num">Value</th><th class="num">Rank of 12</th><th>Year</th></tr></thead>
@@ -282,17 +316,58 @@ export function compareVerdict(a, b) {
   const richer = ppRatio >= 1 ? a : b;
   const poorer = ppRatio >= 1 ? b : a;
   const ppTimes = ppRatio >= 1 ? ppRatio : 1 / ppRatio;
+  const gdpTimes = gdpRatio >= 1 ? gdpRatio : 1 / gdpRatio;
+  const gdpWord = gdpRatio >= 1 ? 'larger' : 'smaller';
   const longer = lifeGap >= 0 ? a : b;
-  return `${bigger.name} has ${ratio.toFixed(1)}× the population of ${smaller.name} ` +
-    `(${fmtPop(bigger.pop)} vs ${fmtPop(smaller.pop)}), and a ${gdpRatio >= 1 ? gdpRatio.toFixed(1) + '× larger' : (1 / gdpRatio).toFixed(1) + '× smaller'} economy — ` +
-    `but ${richer.name} is ${ppTimes.toFixed(1)}× richer per person (${fmtPerPerson(gdpPerPerson(richer))} vs ${fmtPerPerson(gdpPerPerson(poorer))}). ` +
+  return `${bigger.name} has ${fmtRatio(ratio)}× the population of ${smaller.name} ` +
+    `(${fmtPop(bigger.pop)} vs ${fmtPop(smaller.pop)}), and a ${fmtRatio(gdpTimes)}× ${gdpWord} economy — ` +
+    `but ${richer.name} is ${fmtRatio(ppTimes)}× richer per person (${fmtPerPerson(gdpPerPerson(richer))} vs ${fmtPerPerson(gdpPerPerson(poorer))}). ` +
     `People in ${longer.name} live ${Math.abs(lifeGap).toFixed(1)} years longer on average.`;
 }
 
-export function renderCompare(aSlug, bSlug) {
-  const a = countryBySlug(aSlug) || COUNTRIES[0];
-  const b = countryBySlug(bSlug) || COUNTRIES[1];
+// The pickers, shared by the normal compare page and the two error states
+// below — main.js wires them by id, so every branch must include them.
+function comparePickers(a, b) {
   const options = (selected) => COUNTRIES.map((c) => `<option value="${c.slug}" ${c.slug === selected ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  return `<div class="compare-pickers">
+      <label>Country A <select id="compare-a">${options(a.slug)}</select></label>
+      <button id="compare-swap" class="button ghost" type="button">⇄ Swap</button>
+      <label>Country B <select id="compare-b">${options(b.slug)}</select></label>
+    </div>`;
+}
+
+export function renderCompare(aSlug, bSlug) {
+  const aRaw = countryBySlug(aSlug);
+  const bRaw = countryBySlug(bSlug);
+  // A slug that was given but matches no country is an error, not a silent
+  // fallback: a shared or mistyped link must never show the wrong pair.
+  // A missing slug (no ?a= / ?b=) just defaults to India / China.
+  const bad = [];
+  if (aSlug && !aRaw) bad.push(aSlug);
+  if (bSlug && !bRaw) bad.push(bSlug);
+  const a = aRaw ?? COUNTRIES[0];
+  const b = bRaw ?? COUNTRIES[1];
+  if (bad.length) {
+    return `
+  <section>
+    <p class="kicker">Compare · any two of the twelve</p>
+    <h1>No such countr${bad.length > 1 ? 'ies' : 'y'}.</h1>
+    <p class="lede">StatAtlas covers the twelve most populous countries, and ${bad.map((s) => `“${esc(s)}”`).join(' and ')} ${bad.length > 1 ? 'are' : 'is'} not one of them. Pick two countries below.</p>
+    ${comparePickers(a, b)}
+    <p class="cta-row"><a class="button" href="#/countries">See the rankings →</a></p>
+  </section>`;
+  }
+  // Comparing a country with itself has no verdict to give.
+  if (a.slug === b.slug) {
+    return `
+  <section>
+    <p class="kicker">Compare · any two of the twelve</p>
+    <h1>${esc(a.name)} vs ${esc(a.name)}</h1>
+    <p class="lede">Comparing a country with itself tells you nothing — pick two different countries below.</p>
+    ${comparePickers(a, b)}
+    <p class="cta-row"><a class="button ghost" href="#/country/${a.slug}">Profile: ${esc(a.name)} →</a></p>
+  </section>`;
+  }
   const rows = INDICATORS.map((ind) => {
     const va = indicatorValue(a, ind.key);
     const vb = indicatorValue(b, ind.key);
@@ -306,11 +381,7 @@ export function renderCompare(aSlug, bSlug) {
     <p class="kicker">Compare · any two of the twelve</p>
     <h1>${esc(a.name)} vs ${esc(b.name)}</h1>
     <p class="lede">${compareVerdict(a, b)}</p>
-    <div class="compare-pickers">
-      <label>Country A <select id="compare-a">${options(a.slug)}</select></label>
-      <button id="compare-swap" class="button ghost" type="button">⇄ Swap</button>
-      <label>Country B <select id="compare-b">${options(b.slug)}</select></label>
-    </div>
+    ${comparePickers(a, b)}
     <div class="table-wrap"><table>
       <thead><tr><th>Indicator</th><th class="num">${esc(a.name)}</th><th class="num">${esc(b.name)}</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -329,6 +400,11 @@ export function renderCompare(aSlug, bSlug) {
 // --- Methodology ---------------------------------------------------------------
 
 export function renderMethodology() {
+  const totals = twelveTotals();
+  // The country list and shares are computed from the dataset, never typed
+  // out — the list is the twelve by population, in that order.
+  const names = sortedBy('pop').map((c) => c.name);
+  const countryList = names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
   const rows = [
     { series: SOURCES.population.series, name: 'Population, total', year: 2024, note: 'Mid-year estimate of all residents, regardless of legal status or citizenship.' },
     { series: SOURCES.gdp.series, name: 'GDP (current US$)', year: 2024, note: 'Gross domestic product at market prices, converted to US dollars at the official exchange rate.' },
@@ -350,9 +426,8 @@ export function renderMethodology() {
       <tbody>${rows.map((r) => `<tr><td><code>${r.series}</code></td><td>${esc(r.name)}</td><td class="num">${r.year}</td><td>${esc(r.note)}</td></tr>`).join('')}</tbody>
     </table></div>
     <h2>Why these twelve countries</h2>
-    <p>The twelve most populous countries in the world in 2024: India, China, United States,
-    Indonesia, Pakistan, Nigeria, Brazil, Bangladesh, Russia, Mexico, Japan and Germany.
-    Together they hold 59.4% of humanity and produce 62.1% of world GDP — a single list
+    <p>The twelve most populous countries in the world in 2024: ${esc(countryList)}.
+    Together they hold ${fmtShare(totals.popShare)} of humanity and produce ${fmtShare(totals.gdpShare)} of world GDP — a single list
     that is big enough to rank meaningfully and small enough to read in one sitting.</p>
     <h2>Rounding and limits</h2>
     <ul class="limits">
