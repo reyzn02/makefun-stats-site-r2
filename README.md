@@ -8,7 +8,7 @@
 
 ## What it is
 
-StatAtlas tracks the world's twelve most populous countries — India, China, United States, Indonesia, Pakistan, Nigeria, Brazil, Bangladesh, Russia, Mexico, Japan, Germany — across five indicators:
+StatAtlas tracks the world's twelve most populous countries — India, China, United States, Indonesia, Pakistan, Nigeria, Brazil, Bangladesh, Russia, Ethiopia, Mexico, Japan — across five indicators:
 
 - **Population** 2024 (World Bank WDI SP.POP.TOTL)
 - **GDP** 2024, current US$ (WDI NY.GDP.MKTP.CD)
