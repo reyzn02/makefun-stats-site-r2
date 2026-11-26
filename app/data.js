@@ -34,9 +34,9 @@ export const COUNTRIES = [
   { slug: 'brazil', name: 'Brazil', region: 'South America', pop: 211998573, gdp: 2185821610689, life: 75.848, unemp: 6.801 },
   { slug: 'bangladesh', name: 'Bangladesh', region: 'South Asia', pop: 173562364, gdp: 450119432069, life: 74.672, unemp: 3.635 },
   { slug: 'russia', name: 'Russia', region: 'Europe', pop: 143669648, gdp: 2186462268813, life: 73.255, unemp: 2.43 },
+  { slug: 'ethiopia', name: 'Ethiopia', region: 'East Africa', pop: 132059767, gdp: 149740297952, life: 67.315, unemp: 3.357 },
   { slug: 'mexico', name: 'Mexico', region: 'North America', pop: 130861007, gdp: 1830489311089, life: 75.069, unemp: 2.678 },
   { slug: 'japan', name: 'Japan', region: 'East Asia', pop: 123975371, gdp: 4190008188359, life: 84.041, unemp: 2.5 },
-  { slug: 'germany', name: 'Germany', region: 'Europe', pop: 83516593, gdp: 4685592577805, life: 81.041, unemp: 3.4 },
 ];
 
 // --- Derived figures (computed here, in one place, from the stored data) ---
